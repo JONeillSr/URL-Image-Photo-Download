@@ -67,10 +67,12 @@
     
     Runs in strict mode with detailed output to see exactly which images are being found and why.
 
-.NOTES
-    Author: [Your Name]
-    Date: 2024
-    Version: 1.2
+	.NOTES
+    Author: John O'Neill Sr.
+    Company: Azure Innovators
+    Date: 10/03/2025
+    Version: 1.0
+    Change Purpose: Initial release
     
     Prerequisites:
         - PowerShell 5.1 or later

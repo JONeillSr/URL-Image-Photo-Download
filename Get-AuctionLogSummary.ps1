@@ -94,10 +94,12 @@
     
     Generate comprehensive HTML dashboard with all charts and statistics.
 
-.NOTES
-    Author: Companion to Extract-AuctionURLs.ps1
-    Date: 2024
+	.NOTES
+    Author: John O'Neill Sr.
+    Company: Azure Innovators
+    Date: 10/05/2025
     Version: 1.0
+    Change Purpose:
 #>
 
 param(

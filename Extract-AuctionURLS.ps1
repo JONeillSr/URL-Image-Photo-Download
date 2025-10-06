@@ -86,10 +86,12 @@
     
     Process with custom log file location.
 
-.NOTES
-    Author: [Your Name]
-    Date: 2024
+	.NOTES
+    Author: John O'Neill Sr.
+    Company: Azure Innovators
+    Date: 10/03/2025
     Version: 2.2
+    Change Purpose:
     
     The script identifies auctions by their catalog ID in the URL and groups lots accordingly.
     When processing multiple files (paginated results), it combines all pages before grouping.
