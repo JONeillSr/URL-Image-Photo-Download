@@ -1,0 +1,736 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Auction Extraction Log Analysis - Summary Report</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            color: #333;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            overflow: hidden;
+        }
+        
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px 40px;
+            border-bottom: 4px solid #5568d3;
+        }
+        
+        header h1 {
+            font-size: 28px;
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+        
+        header .subtitle {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            padding: 30px 40px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            border-left: 4px solid #667eea;
+        }
+        
+        .stat-card.success {
+            border-left-color: #10b981;
+        }
+        
+        .stat-card.warning {
+            border-left-color: #f59e0b;
+        }
+        
+        .stat-card.danger {
+            border-left-color: #ef4444;
+        }
+        
+        .stat-card h3 {
+            font-size: 13px;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+        
+        .stat-card .value {
+            font-size: 32px;
+            font-weight: 700;
+            color: #333;
+        }
+        
+        .content {
+            padding: 40px;
+        }
+        
+        .section {
+            margin-bottom: 40px;
+        }
+        
+        .section h2 {
+            font-size: 22px;
+            margin-bottom: 20px;
+            color: #667eea;
+            border-bottom: 2px solid #e0e0e0;
+            padding-bottom: 10px;
+        }
+        
+        .chart-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+            gap: 30px;
+            margin-bottom: 40px;
+        }
+        
+        .chart-container {
+            background: white;
+            padding: 25px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .chart-container h3 {
+            font-size: 16px;
+            margin-bottom: 20px;
+            color: #333;
+            font-weight: 600;
+        }
+        
+        .chart-wrapper {
+            position: relative;
+            height: 300px;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        
+        thead {
+            background: #667eea;
+            color: white;
+        }
+        
+        th {
+            padding: 15px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        td {
+            padding: 12px 15px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        
+        tr:hover {
+            background-color: #f8f9fa;
+        }
+        
+        tbody tr:last-child td {
+            border-bottom: none;
+        }
+        
+        .text-right {
+            text-align: right;
+        }
+        
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        
+        .status-success {
+            background: #d1fae5;
+            color: #065f46;
+        }
+        
+        .status-failed {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+        
+        .status-other {
+            background: #fef3c7;
+            color: #92400e;
+        }
+        
+        .has-issues {
+            color: #dc2626;
+            font-weight: 600;
+        }
+        
+        .extracted {
+            color: #10b981;
+            font-weight: 600;
+        }
+        
+        .not-extracted {
+            color: #9ca3af;
+        }
+        
+        footer {
+            background: #f8f9fa;
+            padding: 20px 40px;
+            border-top: 1px solid #e0e0e0;
+            text-align: center;
+            color: #666;
+            font-size: 13px;
+        }
+        
+        .info-box {
+            background: #eff6ff;
+            border-left: 4px solid #3b82f6;
+            padding: 15px 20px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+        
+        .info-box p {
+            margin: 0;
+            color: #1e40af;
+            font-size: 14px;
+        }
+        
+        .issues-container {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .no-issues {
+            text-align: center;
+            padding: 40px 20px;
+            background: #f0fdf4;
+            border-radius: 8px;
+            border: 2px dashed #86efac;
+        }
+        
+        .no-issues p {
+            color: #166534;
+            font-size: 16px;
+            font-weight: 600;
+            margin: 0;
+        }
+        
+        .issue-section {
+            margin-bottom: 30px;
+        }
+        
+        .issue-section:last-child {
+            margin-bottom: 0;
+        }
+        
+        .issue-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #e5e7eb;
+        }
+        
+        .error-title {
+            color: #dc2626;
+        }
+        
+        .warning-title {
+            color: #f59e0b;
+        }
+        
+        .issue-item {
+            background: #f9fafb;
+            border-left: 4px solid #e5e7eb;
+            padding: 15px;
+            margin-bottom: 12px;
+            border-radius: 4px;
+        }
+        
+        .error-item {
+            background: #fef2f2;
+            border-left-color: #dc2626;
+        }
+        
+        .warning-item {
+            background: #fffbeb;
+            border-left-color: #f59e0b;
+        }
+        
+        .issue-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .issue-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 40px;
+            height: 24px;
+            padding: 0 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+        
+        .error-badge {
+            background: #dc2626;
+            color: white;
+        }
+        
+        .warning-badge {
+            background: #f59e0b;
+            color: white;
+        }
+        
+        .issue-message {
+            flex: 1;
+            font-size: 14px;
+            color: #374151;
+            line-height: 1.5;
+        }
+        
+        .issue-occurrences {
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid #e5e7eb;
+        }
+        
+        .occurrence {
+            font-size: 13px;
+            color: #6b7280;
+            padding: 4px 0;
+            font-family: 'Consolas', 'Courier New', monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>📊 Auction Extraction Log Analysis - Summary Report</h1>
+            <div class="subtitle">Generated on October 05, 2025 at 20:07:08 | Analyzing 1 extraction log(s)</div>
+        </header>
+        
+        <div class="stats-grid">
+            <div class="stat-card">
+                <h3>Total Extractions</h3>
+                <div class="value">1</div>
+            </div>
+            <div class="stat-card success">
+                <h3>Lots Extracted</h3>
+                <div class="value">188</div>
+            </div>
+            <div class="stat-card">
+                <h3>Auctions Found</h3>
+                <div class="value">6</div>
+            </div>
+            <div class="stat-card warning">
+                <h3>Lots Skipped</h3>
+                <div class="value">44</div>
+            </div>
+            <div class="stat-card success">
+                <h3>Successful Runs</h3>
+                <div class="value">1</div>
+            </div>
+            <div class="stat-card danger">
+                <h3>Failed Runs</h3>
+                <div class="value">0</div>
+            </div>
+        </div>
+        
+        <div class="content">
+            <div class="section">
+                <h2>📈 Extraction Trends</h2>
+                <div class="chart-grid">
+                    <div class="chart-container">
+                        <h3>Lots Extracted Over Time</h3>
+                        <div class="chart-wrapper">
+                            <canvas id="timelineChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="chart-container">
+                        <h3>Extraction Status Distribution</h3>
+                        <div class="chart-wrapper">
+                            <canvas id="statusChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="section">
+                <h2>🏆 Top Auctions by Lots</h2>
+                <div class="chart-container">
+                    <div class="chart-wrapper">
+                        <canvas id="auctionsChart"></canvas>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="section">
+                <h2>⚡ Performance Metrics</h2>
+                <div class="chart-grid">
+                    <div class="chart-container">
+                        <h3>Processing Duration</h3>
+                        <div class="chart-wrapper">
+                            <canvas id="performanceChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="chart-container">
+                        <h3>Extraction Rate (Lots/Second)</h3>
+                        <div class="chart-wrapper">
+                            <canvas id="efficiencyChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="section">
+                <h2>👥 Activity by User</h2>
+                <div class="chart-container">
+                    <div class="chart-wrapper" style="height: 250px;">
+                        <canvas id="userChart"></canvas>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="section">
+                <h2>⚠️ Issues and Warnings</h2>
+                <div class="issues-container">
+                    <div class='no-issues'><p>✓ No errors or warnings found in any extraction runs!</p></div>
+                </div>
+            </div>
+            
+            <div class="section">
+                <h2>📋 Recent Extraction History</h2>
+                <div class="info-box">
+                    <p>Showing the 20 most recent extraction runs</p>
+                </div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Date & Time</th>
+                            <th>User</th>
+                            <th>Status</th>
+                            <th class="text-right">Files</th>
+                            <th class="text-right">Auctions</th>
+                            <th class="text-right">Lots</th>
+                            <th class="text-right">Skipped</th>
+                            <th class="text-right">Duration</th>
+                            <th class="text-right">Issues</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                                <tr>
+            <td>2025-10-05 18:11</td>
+            <td>JohnO'NeillSr</td>
+            <td><span class="status-badge status-success">Success</span></td>
+            <td class="text-right">2</td>
+            <td class="text-right">6</td>
+            <td class="text-right">188</td>
+            <td class="text-right">44</td>
+            <td class="text-right">46s</td>
+            <td class="text-right has-issues">3</td>
+        </tr>
+                    </tbody>
+                </table>
+            </div>
+            
+            <div class="section">
+                <h2>🎯 Auction Processing Summary</h2>
+                <div class="info-box">
+                    <p>Top 15 auctions by total lots processed across all extractions</p>
+                </div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Catalog ID</th>
+                            <th class="text-right">Times Found</th>
+                            <th class="text-right">Times Extracted</th>
+                            <th class="text-right">Total Lots</th>
+                            <th>Last Seen</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                                <tr>
+            <td><strong>brolyn10242</strong></td>
+            <td class="text-right">1</td>
+            <td class="text-right extracted">1</td>
+            <td class="text-right">83</td>
+            <td>2025-10-05</td>
+        </tr>        <tr>
+            <td><strong>brolyn10244</strong></td>
+            <td class="text-right">1</td>
+            <td class="text-right extracted">1</td>
+            <td class="text-right">52</td>
+            <td>2025-10-05</td>
+        </tr>        <tr>
+            <td><strong>brolyn10241</strong></td>
+            <td class="text-right">1</td>
+            <td class="text-right extracted">1</td>
+            <td class="text-right">26</td>
+            <td>2025-10-05</td>
+        </tr>        <tr>
+            <td><strong>brolyn10245</strong></td>
+            <td class="text-right">1</td>
+            <td class="text-right extracted">1</td>
+            <td class="text-right">23</td>
+            <td>2025-10-05</td>
+        </tr>        <tr>
+            <td><strong>bscnew10468</strong></td>
+            <td class="text-right">1</td>
+            <td class="text-right extracted">1</td>
+            <td class="text-right">2</td>
+            <td>2025-10-05</td>
+        </tr>        <tr>
+            <td><strong>bscpres10172</strong></td>
+            <td class="text-right">1</td>
+            <td class="text-right extracted">1</td>
+            <td class="text-right">2</td>
+            <td>2025-10-05</td>
+        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        <footer>
+            <p>Generated by Get-AuctionLogSummary.ps1 • Auction Log Analyzer v1.0</p>
+        </footer>
+    </div>
+    
+    <script>
+        // Chart.js default configuration
+        Chart.defaults.font.family = "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif";
+        Chart.defaults.color = '#666';
+        
+        // Timeline Chart
+        new Chart(document.getElementById('timelineChart'), {
+            type: 'line',
+            data: {
+                labels: ["10/05 18:11"],
+                datasets: [
+                    {
+                        label: 'Lots Extracted',
+                        data: [188],
+                        borderColor: '#10b981',
+                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    },
+                    {
+                        label: 'Lots Skipped',
+                        data: [44],
+                        borderColor: '#f59e0b',
+                        backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+        
+        // Status Pie Chart
+        new Chart(document.getElementById('statusChart'), {
+            type: 'doughnut',
+            data: {
+                labels: ['Success', 'Failed', 'Other'],
+                datasets: [{
+                    data: [1, 0, 0],
+                    backgroundColor: [
+                        '#10b981',
+                        '#ef4444',
+                        '#f59e0b'
+                    ],
+                    borderWidth: 2,
+                    borderColor: '#fff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    }
+                }
+            }
+        });
+        
+        // Top Auctions Bar Chart
+        new Chart(document.getElementById('auctionsChart'), {
+            type: 'bar',
+            data: {
+                labels: ["brolyn10242","brolyn10244","brolyn10241","brolyn10245","bscnew10468","bscpres10172"],
+                datasets: [{
+                    label: 'Total Lots',
+                    data: [83,52,26,23,2,2],
+                    backgroundColor: '#667eea',
+                    borderColor: '#5568d3',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                indexAxis: 'y',
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                },
+                scales: {
+                    x: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+        
+        // Performance Chart
+        new Chart(document.getElementById('performanceChart'), {
+            type: 'line',
+            data: {
+                labels: ["10/05"],
+                datasets: [{
+                    label: 'Duration (seconds)',
+                    data: [46],
+                    borderColor: '#8b5cf6',
+                    backgroundColor: 'rgba(139, 92, 246, 0.1)',
+                    tension: 0.4,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+        
+        // Efficiency Chart
+        new Chart(document.getElementById('efficiencyChart'), {
+            type: 'bar',
+            data: {
+                labels: ["10/05"],
+                datasets: [{
+                    label: 'Lots per Second',
+                    data: [4.09],
+                    backgroundColor: '#06b6d4',
+                    borderColor: '#0891b2',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+        
+        // User Activity Chart
+        new Chart(document.getElementById('userChart'), {
+            type: 'pie',
+            data: {
+                labels: ["JohnO'NeillSr"],
+                datasets: [{
+                    data: [1],
+                    backgroundColor: [
+                        '#667eea',
+                        '#10b981',
+                        '#f59e0b',
+                        '#ef4444',
+                        '#8b5cf6',
+                        '#06b6d4'
+                    ],
+                    borderWidth: 2,
+                    borderColor: '#fff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'right'
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+</html>
