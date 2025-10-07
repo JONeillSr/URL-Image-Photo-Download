@@ -1,7 +1,6 @@
 <#
 .SYNOPSIS
     Extracts lot URLs from auction pages, groups them by auction/catalog, and allows selective extraction.
-    Supports processing multiple HTML files from paginated results with comprehensive logging.
 
 .DESCRIPTION
     This script processes saved HTML file(s) from auction won/bid pages, identifies different
@@ -37,9 +36,9 @@
     Optional. Pattern to match HTML files when processing a folder.
     Default is "*.html" to process all HTML files.
 
-.PARAMETER RequireLotNumbers
-    Optional switch. When set to $true (default), only extracts lots where lot numbers can be found.
-    Set to $false to include all lots even without lot numbers.
+.PARAMETER SkipLotsWithoutNumbers
+    Optional switch. When set, only extracts lots where lot numbers can be found.
+    By default (when not set), includes all lots even without lot numbers.
 
 .PARAMETER ShowSkipped
     Optional switch. When enabled, shows details about lots that were skipped due to missing lot numbers.
@@ -51,15 +50,23 @@
     Optional. Custom path for the log file. If not specified, creates log in OutputFolder
     with timestamp (e.g., ExtractAuctions_20241205_143022.log).
 
+.INPUTS
+    System.String
+    Accepts a string path to either an HTML file or a directory containing HTML files.
+
+.OUTPUTS
+    CSV files containing URLs and lot numbers for selected auctions.
+    Log file with detailed extraction information (unless -NoLog is specified).
+
 .EXAMPLE
     .\Extract-AuctionURLs.ps1 -Source "won_auctions.html"
     
-    Process a single HTML file interactively. By default, only includes lots with lot numbers.
+    Process a single HTML file interactively, including all lots.
 
 .EXAMPLE
-    .\Extract-AuctionURLs.ps1 -Source "C:\Auctions\Won"
+    .\Extract-AuctionURLs.ps1 -Source "C:\Auctions\Won" -SkipLotsWithoutNumbers
     
-    Process all HTML files in the Won folder (for paginated results).
+    Process all HTML files in the Won folder, only including lots with lot numbers.
 
 .EXAMPLE
     .\Extract-AuctionURLs.ps1 -Source "C:\Auctions\Won" -FilePattern "LotsWon*.html"
@@ -72,11 +79,6 @@
     Process files and show details about any lots skipped due to missing lot numbers.
 
 .EXAMPLE
-    .\Extract-AuctionURLs.ps1 -Source "won.html" -RequireLotNumbers:$false
-    
-    Process and include ALL lots, even those without lot numbers (use with caution).
-
-.EXAMPLE
     .\Extract-AuctionURLs.ps1 -Source "C:\Auctions\Won" -ExtractMode All -OutputFolder "C:\CSV"
     
     Process all HTML files and extract all auctions to separate CSV files.
@@ -86,15 +88,20 @@
     
     Process with custom log file location.
 
-	.NOTES
+.NOTES
     Author: John O'Neill Sr.
     Company: Azure Innovators
     Date: 10/03/2025
-    Version: 2.2
-    Change Purpose:
+    Version: 2.3
+    Change Date: 10/06/2025
     
     The script identifies auctions by their catalog ID in the URL and groups lots accordingly.
     When processing multiple files (paginated results), it combines all pages before grouping.
+    
+    VERSION 2.3 CHANGES:
+    - Fixed PSScriptAnalyzer warnings
+    - Renamed RequireLotNumbers parameter to SkipLotsWithoutNumbers (proper switch behavior)
+    - Fixed automatic variable $matches usage
     
     VERSION 2.2 CHANGES:
     - Added comprehensive logging functionality
@@ -104,16 +111,38 @@
     
     VERSION 2.1 CHANGES:
     - Now requires lot numbers by default (only extracts lots with identifiable lot numbers)
-    - Added -RequireLotNumbers parameter to control this behavior
+    - Added parameter to control this behavior
     - Added -ShowSkipped parameter to see details about skipped lots
     - Provides accurate lot counts matching what BidSpotter shows
+
+.LINK
+    https://github.com/JONeillSr/Extract-AuctionURLs
 #>
 
 param(
-    [Parameter(Mandatory=$true)]
+    [Parameter(Mandatory=$true, Position=0, ValueFromPipeline=$true, ValueFromPipelineByPropertyName=$true)]
+    [ValidateScript({
+        if (-not (Test-Path $_)) {
+            throw "Path '$_' does not exist."
+        }
+        return $true
+    })]
     [string]$Source,
     
     [Parameter(Mandatory=$false)]
+    [ValidateScript({
+        if ($_ -and -not (Test-Path $_ -PathType Container)) {
+            # Try to create the directory if it doesn't exist
+            try {
+                New-Item -ItemType Directory -Path $_ -Force | Out-Null
+                return $true
+            }
+            catch {
+                throw "Cannot create output folder: $_"
+            }
+        }
+        return $true
+    })]
     [string]$OutputFolder = ".",
     
     [Parameter(Mandatory=$false)]
@@ -121,13 +150,15 @@ param(
     [string]$ExtractMode = 'Interactive',
     
     [Parameter(Mandatory=$false)]
+    [ValidateNotNullOrEmpty()]
     [string]$AuctionFilter = "",
     
     [Parameter(Mandatory=$false)]
+    [ValidateNotNullOrEmpty()]
     [string]$FilePattern = "*.html",
     
     [Parameter(Mandatory=$false)]
-    [switch]$RequireLotNumbers = $true,
+    [switch]$SkipLotsWithoutNumbers,  # FIXED: Renamed from RequireLotNumbers and removed default value
     
     [Parameter(Mandatory=$false)]
     [switch]$ShowSkipped,
@@ -136,6 +167,20 @@ param(
     [switch]$NoLog,
     
     [Parameter(Mandatory=$false)]
+    [ValidateScript({
+        if ($_) {
+            $dir = Split-Path $_ -Parent
+            if ($dir -and -not (Test-Path $dir)) {
+                try {
+                    New-Item -ItemType Directory -Path $dir -Force | Out-Null
+                }
+                catch {
+                    throw "Cannot create log directory: $dir"
+                }
+            }
+        }
+        return $true
+    })]
     [string]$LogPath = ""
 )
 
@@ -161,7 +206,7 @@ if (-not $NoLog) {
 Auction URL Extraction Log
 ========================================
 Started: $(Get-Date -Format "yyyy-MM-dd HH:mm:ss")
-Script Version: 2.2
+Script Version: 2.3
 PowerShell Version: $($PSVersionTable.PSVersion)
 User: $env:USERNAME
 Computer: $env:COMPUTERNAME
@@ -172,7 +217,7 @@ Parameters:
   Extract Mode: $ExtractMode
   Auction Filter: $(if ($AuctionFilter) { $AuctionFilter } else { "None" })
   File Pattern: $FilePattern
-  Require Lot Numbers: $RequireLotNumbers
+  Skip Lots Without Numbers: $SkipLotsWithoutNumbers
   Show Skipped: $ShowSkipped
 ========================================
 
@@ -218,8 +263,10 @@ function Write-Log {
 function Get-CatalogId {
     param([string]$Url)
     
+    # FIXED: Using different variable name instead of automatic $matches
     if ($Url -match 'catalogue-id-([^/]+)') {
-        return $matches[1]
+        $catalogMatch = $Matches[1]
+        return $catalogMatch
     }
     return "unknown"
 }
@@ -233,16 +280,20 @@ function Get-LotNumberNearUrl {
     
     $urlEscaped = [regex]::Escape($Url)
     
+    # FIXED: Store regex matches in different variables to avoid overwriting automatic $matches
     # Look for lot number patterns near the URL
     if ($HtmlContent -match "(?s)$urlEscaped.{0,500}Lot\s*#?\s*(\d+)") {
-        return $matches[1]
+        $lotMatch = $Matches[1]
+        return $lotMatch
     }
     elseif ($HtmlContent -match "(?s)Lot\s*#?\s*(\d+).{0,500}$urlEscaped") {
-        return $matches[1]
+        $lotMatch = $Matches[1]
+        return $lotMatch
     }
     elseif ($HtmlContent -match "(?s)$urlEscaped.{0,500}>(\d+)<") {
         # Sometimes lot number is just in a nearby element
-        return $matches[1]
+        $lotMatch = $Matches[1]
+        return $lotMatch
     }
     
     return ""
@@ -252,7 +303,7 @@ function Get-LotNumberNearUrl {
 function Get-AuctionLots {
     param(
         [string]$HtmlContent,
-        [bool]$RequireLotNum = $true,
+        [bool]$RequireLotNum = $false,
         [bool]$ShowSkippedLots = $false
     )
     
@@ -268,8 +319,9 @@ function Get-AuctionLots {
     $foundUrls = @{}
     
     foreach ($pattern in $patterns) {
-        $matches = [regex]::Matches($HtmlContent, $pattern)
-        foreach ($match in $matches) {
+        # FIXED: Store regex matches in a local variable
+        $urlMatches = [regex]::Matches($HtmlContent, $pattern)
+        foreach ($match in $urlMatches) {
             $url = $match.Groups[1].Value
             
             # Ensure full URL
@@ -347,7 +399,8 @@ function Get-AuctionLots {
     # Try to extract auction names if possible
     foreach ($catalogId in $auctions.Keys) {
         if ($HtmlContent -match "catalogue-id-$catalogId[^>]+>([^<]+)<") {
-            $auctions[$catalogId].AuctionName = $matches[1].Trim()
+            $nameMatch = $Matches[1].Trim()
+            $auctions[$catalogId].AuctionName = $nameMatch
         }
     }
     
@@ -408,8 +461,8 @@ function Show-AuctionSummary {
 }
 
 # Main script
-Write-Host "Auction URL Extractor - By Auction" -ForegroundColor Cyan
-Write-Host "===================================" -ForegroundColor Cyan
+Write-Host "Auction URL Extractor v2.3" -ForegroundColor Cyan
+Write-Host "===========================" -ForegroundColor Cyan
 Write-Host ""
 
 if (-not $NoLog) {
@@ -466,7 +519,8 @@ foreach ($file in $htmlFiles) {
         $htmlContent = Get-Content -Path $file.FullName -Raw -Encoding UTF8
         
         # Extract auctions from this file
-        $result = Get-AuctionLots -HtmlContent $htmlContent -RequireLotNum $RequireLotNumbers -ShowSkippedLots $ShowSkipped
+        # FIXED: Pass the actual switch value
+        $result = Get-AuctionLots -HtmlContent $htmlContent -RequireLotNum $SkipLotsWithoutNumbers.IsPresent -ShowSkippedLots $ShowSkipped
         $fileAuctions = $result.Auctions
         $totalSkipped += $result.SkippedCount
         $allSkippedLots += $result.SkippedLots
@@ -512,7 +566,7 @@ if ($totalSkipped -gt 0) {
     Write-Log "Skipped Lots Summary: $totalSkipped lot(s) without lot numbers" -Level Warning
     
     if ($ShowSkipped) {
-        Write-Host "  To include these lots, run with -RequireLotNumbers:`$false" -ForegroundColor Gray
+        Write-Host "  To include these lots, run without -SkipLotsWithoutNumbers" -ForegroundColor Gray
     } else {
         Write-Host "  To see details, run with -ShowSkipped" -ForegroundColor Gray
     }
@@ -522,7 +576,7 @@ if ($auctions.Count -eq 0) {
     Write-Log "ERROR: No auction lots found in the HTML file(s)" -Level Error
     if ($totalSkipped -gt 0) {
         Write-Log "Note: $totalSkipped lot(s) were found but skipped due to missing lot numbers" -Level Warning
-        Write-Log "Try running with -RequireLotNumbers:`$false to include them" -Level Warning
+        Write-Log "Try running without -SkipLotsWithoutNumbers to include them" -Level Warning
     }
     exit 1
 }
@@ -546,7 +600,7 @@ foreach ($catalogId in $auctions.Keys) {
     $duplicatesRemoved = $originalCount - $uniqueLots.Count
     
     if ($duplicatesRemoved -gt 0) {
-        Write-Log "  Auction $catalogId : Removed $duplicatesRemoved duplicate(s)" -Level Info
+        Write-Log "  Auction $($catalogId): Removed $duplicatesRemoved duplicate(s)" -Level Info
     }
 }
 
@@ -632,7 +686,7 @@ switch ($ExtractMode) {
         foreach ($item in $selectedAuctions) {
             $catalogId = $item.CatalogId
             $auction = $item.Auction
-            $outputFile = Join-Path $OutputFolder "auction_$catalogId.csv"
+            $outputFile = Join-Path $OutputFolder "loturls_$catalogId.csv"
             
             Write-Host ""
             Write-Log "Extracting auction: $catalogId" -Level Info
@@ -654,7 +708,7 @@ switch ($ExtractMode) {
         # Extract all auctions to separate files
         foreach ($catalogId in $auctions.Keys) {
             $auction = $auctions[$catalogId]
-            $outputFile = Join-Path $OutputFolder "auction_$catalogId.csv"
+            $outputFile = Join-Path $OutputFolder "loturls_$catalogId.csv"
             
             Write-Host ""
             Write-Log "Extracting auction: $catalogId" -Level Info

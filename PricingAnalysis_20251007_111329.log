@@ -1,0 +1,18 @@
+2025-10-07 11:13:29 [INFO] === Purchase Tracking Pricing Analysis Started ===
+2025-10-07 11:13:29 [INFO] Input CSV: C:\Users\JohnO'NeillSr\OneDrive - AwesomeWildStuff.com\JT Custom Trailers\Auctions\Heartland Auction 10-2025\Heartland 901\purchasetracking_test.csv
+2025-10-07 11:13:29 [INFO] Output CSV: C:\Users\JohnO'NeillSr\OneDrive - AwesomeWildStuff.com\JT Custom Trailers\Auctions\Heartland Auction 10-2025\Heartland 901\analyzed_purchases.csv
+2025-10-07 11:13:29 [INFO] Loading CSV data from: C:\Users\JohnO'NeillSr\OneDrive - AwesomeWildStuff.com\JT Custom Trailers\Auctions\Heartland Auction 10-2025\Heartland 901\purchasetracking_test.csv
+2025-10-07 11:13:29 [INFO] 
+--- Processing Item 1/8 ---
+2025-10-07 11:13:29 [INFO] Description: Greystone microwave Model GSMW09B
+2025-10-07 11:13:29 [INFO] Current Per Item Cost: -StrictMode(@{Lot=2030; Description=Greystone microwave Model GSMW09B; Address=1139 Haines Blvd, Sturgis , MI 49091 ; Plant=901; Location=ROW 2; Quantity=7; Bid=$250.00; Sale Price=$250.00; Premium=$45.00; Tax=$0.00; Rigging Fee=$0.00; Freight Cost=$0.00; Other Costs=$0.00; Total=$295.00; Per Item Cost=$42.14; Category=; Notes=; Photos=; MSRP=; Average On-Line=; Our Asking Price=; Sold Price=}.'Per Item Cost')
+2025-10-07 11:13:29 [INFO] Searching walmart.com for: Greystone microwave Model GSMW09B
+2025-10-07 11:13:31 [SUCCESS] Found price on walmart.com : -StrictModemedianPrice
+2025-10-07 11:13:31 [INFO] Searching amazon.com for: Greystone microwave Model GSMW09B
+2025-10-07 11:13:33 [SUCCESS] Found price on amazon.com : -StrictModemedianPrice
+2025-10-07 11:13:33 [INFO] Searching ebay.com for: Greystone microwave Model GSMW09B
+2025-10-07 11:13:35 [SUCCESS] Found price on ebay.com : -StrictModemedianPrice
+2025-10-07 11:13:35 [INFO] Searching campingworld.com for: Greystone microwave Model GSMW09B
+2025-10-07 11:13:36 [SUCCESS] Found price on campingworld.com : -StrictModemedianPrice
+2025-10-07 11:13:36 [INFO] Searching etrailer.com for: Greystone microwave Model GSMW09B
+2025-10-07 11:13:37 [INFO] Searching lippert.com for: Greystone microwave Model GSMW09B
